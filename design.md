@@ -17,6 +17,7 @@
   - [Identifying User Identity and Role](#identifying-user-identity-and-role)
   - [View Vacation Requests](#view-vacation-requests)
   - [Make Vacation Request](#make-vacation-request)
+  - [Edit Vacation Request](#edit-vacation-request)
 - [**Entities & Data Model**](#entities)
 - [**Pseudocode**](#pseudocode)
 
@@ -73,6 +74,10 @@ As the problem revolves around the **complexity and inefficiencies** in the manu
      <p align=center>
      <img src="Design%26Analysis/flowcharts/Flowchart-CancelRequest-VTS.jpg" width="65%"/>
      </p>
+  - **Edit Request (Alt Flow):**
+     <p align=center>
+     <img src="Design%26Analysis/flowcharts/Flowchart-EditRequest-VTS.jpg" width="65%"/>
+     </p>
 
 ## Requirements
 
@@ -88,6 +93,7 @@ As the problem revolves around the **complexity and inefficiencies** in the manu
    3. Withdraws pending requests
    4. Gets notified on manager approval
    5. Cancel approved requests
+   6. Edit pending requests
 3. **Approve Requests**
    _manager:_
    1. Gets email notification on subordinates' requests
@@ -308,22 +314,67 @@ HR -->>Vac:empData
 deactivate HR
 Vac -->> Validation: Validate(request)
 Activate Validation
-alt Valid
 Validation -->> Vac:Valid
-else RestrictionException
+alt ValidationException
 Validation -->> Vac: Validation Exception
 deactivate Validation
-Vac -) Notifier Service: rejectionEmail(reuquest,emp)
-Vac ->> Vac: storeDecision(refusal)
+Vac -->> VTS: VAlidation Exception
+VTS -->> Employee: Validation Error
 end
 Vac ->> Vac:Store Request
-Vac -) Notifier Service:approvalEmail(request,empMngr)
+Vac -) Notifier Service:NotifyManager(request,empMngr)
 Vac-->>VTS:Submitted
 deactivate Vac
 VTS-->>Employee:Submitted
 Deactivate VTS
 
 Deactivate Employee
+```
+
+#### Edit Vacation Request
+
+```mermaid
+sequenceDiagram
+    title Edit Vacation Request Sequence Diagram
+
+    Actor Employee
+    participant VTS
+    participant Input Validation
+    participant Vacation Service
+    participant Request Validator
+
+    activate Employee
+        Employee ->> VTS: editRequest(request)
+        activate VTS
+        VTS ->> Input Validation: Validate Input
+           activate Input Validation
+            Input Validation ->> VTS: Valid
+            deactivate Input Validation
+
+            VTS ->> Vacation Service: editRequest(request)
+            Vacation Service ->>Request Validator:validate(request)
+            activate Request Validator
+
+                Request Validator ->> Vacation Service: Valid
+                deactivate Request Validator
+
+                Vacation Service ->> Vacation Service: updateDB(request)
+                activate Vacation Service
+                deactivate Vacation Service
+               Vacation Service -->> VTS: Request Updated
+                VTS -->> Employee: Request Updated
+            alt Validation Exception
+                Request Validator -->> VTS: Valitdation Exception
+                VTS -->> Employee: Validation Error
+            end
+
+
+
+
+
+    deactivate VTS
+    deactivate Employee
+
 ```
 
 ## Entities
@@ -362,83 +413,114 @@ Deactivate Employee
 
 - **View Vacation Requests:**
 
-```pseudoocode
-FUNCTION getVacationRequests()
+  ```pseudoocode
+  FUNCTION getVacationRequests()
 
-    // Check if the user is authenticated
-    IF security.isAuthenticated() = FALSE THEN
+     // Check if the user is authenticated
+     IF security.isAuthenticated() = FALSE THEN
         RETURN Error "Not Authenticated!"
-    END IF
+     END IF
 
-    // Get the current user from the security context
-    user = security.getCurrentUser()
+     // Get the current user from the security context
+     user = security.getCurrentUser()
 
-    // Retrieve employee data for the current user from the HR API
-    emp = hr.getEmployee(user.username)
+     // Retrieve employee data for the current user from the HR API
+     emp = hr.getEmployee(user.username)
 
-    // Specify a time period for retrieving requests (from 6 months ago to 18 months ahead)
-    fromDate = Date.now() - 6Months
-    toDate = Date.now() + 18Months
+     // Specify a time period for retrieving requests (from 6 months ago to 18 months ahead)
+     fromDate = Date.now() - 6Months
+     toDate = Date.now() + 18Months
 
-    // Fetch vacation requests for the employee within the specified time period
-    requestList = database.getVacationRequests(emp.id, fromDate, toDate)
+     // Fetch vacation requests for the employee within the specified time period
+     requestList = database.getVacationRequests(emp.id, fromDate, toDate)
 
-    RETURN requestList
-
-END FUNCTION
-
-```
+     RETURN requestList
+  END FUNCTION
+  ```
 
 - **Make Vacation Request:**
 
-```pseudocode
-FUNCTION makeVacationRequest(fromDateTime, toDateTime, vacationType, description)
-    // Check if the user is authenticated
-    IF NOT security.isAuthenticated() THEN
+  ```pseudocode
+  FUNCTION makeVacationRequest(fromDateTime, toDateTime, vacationType, description)
+     // Check if the user is authenticated
+     IF NOT security.isAuthenticated() THEN
         RETURN "Error: Not Authenticated!"
-    END IF
+     END IF
 
-    // Check if the input is valid
-    IF NOT isValidInput(fromDateTime, toDateTime, vacationType, description) THEN
+     // Check if the input is valid
+     IF NOT isValidInput(fromDateTime, toDateTime, vacationType, description) THEN
         RETURN "Error: Invalid Input"
-    END IF
+     END IF
 
-    // Retrieve employee data for the current user from the HR API
-    emp = hr.getEmployee(user.username)
+     // Retrieve employee data for the current user from the HR API
+     emp = hr.getEmployee(user.username)
 
-   request = createRequest(emp,toDateTime,fromDateTime,vacationType,description)
+     request = createRequest(emp,toDateTime,fromDateTime,vacationType,description)
 
-    // Retrieve location and HR-specific restrictions from the database
-    locationRestrictions[] = database.getLocationRestrictions(request)
+     // Retrieve location and other restrictions from the database
+     locationRestrictions[] = database.getLocationRestrictions(request)
 
      // Retrieve employee's vacation balance from the database
-    balance = database.getVacationBalance(emp.id, vacationType)
+     balance = database.getVacationBalance(emp.id, vacationType)
 
-    balanceRestriction = createBalanceRestriction(balance)
-    restrictionsList[] = locationRestrictions + balanceRestriction  // Combining to one list
+     balanceRestriction = createBalanceRestriction(balance)
+     restrictionsList[] = locationRestrictions + balanceRestriction  // Combining to one list
 
-    // Loop through each restriction and validate the vacation request
-    FOR restriction IN restrictionsList
+     // Loop through each restriction and validate the vacation request
+     FOR restriction IN restrictionsList
         IF NOT restriction.validate(request) THEN
-            // Send request rejection email to employee
-            notify(emp)
-
-            // Store decision record as rejected
-            database.storeDecision(refusal)
-
-            // Store the vacation request record (pending for HR override)
-            request.setStatus(REJECTED)
-            database.storeVacationRequest(request)
-
-            RETURN "Submited"
+              RETURN "Validation Error!"
         END IF
-    END FOR
+     END FOR
 
-    // If all checks pass, store the vacation request as pending
-    request.setStatus(PENDING)
-    database.storeVacationRequest(request)
+     // If all checks pass, store the vacation request as pending
+     request.setStatus(PENDING)
+     database.storeVacationRequest(request)
+     Notify(manager);
 
-    RETURN "Vacation Request Submitted"
-END FUNCTION
+     RETURN "Vacation Request Submitted"
+  END FUNCTION
+  ```
 
-```
+- **Edit Vacation Request**
+
+  ```pseudocode
+  FUNCTION editVacationRequest(requestId,fromDateTime,toDateTime,description)
+    // Check if the user is authenticated
+     IF NOT security.isAuthenticated() THEN
+        RETURN "Error: Not Authenticated!"
+     END IF
+
+     // Check if the input is valid
+     IF NOT isValidInput(fromDateTime, toDateTime description) THEN
+        RETURN "Error: Invalid Input"
+     END IF
+
+     //Retrieve request from database
+      request = database.getVacationRequest(requuestId)
+
+     // Replace old values
+      request.setNewValues(fromDateTime,toDateTime,description)
+
+     // Retrieve location and other restrictions from the database
+     locationRestrictions[] = database.getLocationRestrictions(request)
+
+     // Retrieve employee's vacation balance from the database
+     balance = database.getVacationBalance(emp.id, vacationType)
+
+     balanceRestriction = createBalanceRestriction(balance)
+     restrictionsList[] = locationRestrictions + balanceRestriction  // Combining to one list
+
+     // Loop through each restriction and validate the vacation request
+     FOR restriction IN restrictionsList
+        IF NOT restriction.validate(request) THEN
+              RETURN "Validation Error!"
+        END IF
+     END FOR
+
+     //update database record
+     database.updateRequest(request)
+
+    RETURN "Request Updated"
+   END FUNCTION
+  ```
