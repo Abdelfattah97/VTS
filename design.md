@@ -18,6 +18,7 @@
   - [View Vacation Requests](#view-vacation-requests)
   - [Make Vacation Request](#make-vacation-request)
 - [**Entities & Data Model**](#entities)
+- [**Pseudocode**](#pseudocode)
 
 ## Vision
 
