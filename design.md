@@ -18,6 +18,7 @@
   - [View Vacation Requests](#view-vacation-requests)
   - [Make Vacation Request](#make-vacation-request)
   - [Edit Vacation Request](#edit-vacation-request)
+  - [Cancel Vacation Request](#cacncel-vacation-request)
 - [**Entities & Data Model**](#entities)
 - [**Pseudocode**](#pseudocode)
 
@@ -315,9 +316,9 @@ deactivate HR
 Vac -->> Validation: Validate(request)
 Activate Validation
 Validation -->> Vac:Valid
+deactivate Validation
 alt ValidationException
 Validation -->> Vac: Validation Exception
-deactivate Validation
 Vac -->> VTS: VAlidation Exception
 VTS -->> Employee: Validation Error
 end
@@ -332,6 +333,10 @@ Deactivate Employee
 ```
 
 #### Edit Vacation Request
+
+- Also Check these diagrams :
+  - [Authentication](#authentication-seq-diagram)
+  - [Identifying User Identity and Role](#identifying-user-identity-and-role)
 
 ```mermaid
 sequenceDiagram
@@ -350,8 +355,8 @@ sequenceDiagram
            activate Input Validation
             Input Validation ->> VTS: Valid
             deactivate Input Validation
-
             VTS ->> Vacation Service: editRequest(request)
+            Activate Vacation Service
             Vacation Service ->>Request Validator:validate(request)
             activate Request Validator
 
@@ -362,18 +367,144 @@ sequenceDiagram
                 activate Vacation Service
                 deactivate Vacation Service
                Vacation Service -->> VTS: Request Updated
+               Deactivate Vacation Service
                 VTS -->> Employee: Request Updated
             alt Validation Exception
                 Request Validator -->> VTS: Valitdation Exception
                 VTS -->> Employee: Validation Error
             end
-
-
-
-
-
     deactivate VTS
     deactivate Employee
+
+```
+
+#### Cacncel Vacation Request
+
+- Also Check these diagrams :
+  - [Authentication](#authentication-seq-diagram)
+  - [Identifying User Identity and Role](#identifying-user-identity-and-role)
+
+```mermaid
+   sequenceDiagram
+
+   actor Employee
+   participant VTS
+   participant Input Validation
+   participant Vacation Facade
+   participant Vacation Service
+   participant Cancelation Service
+   participant Balance Service
+   participant Notifier Service
+   Activate Employee
+   Employee ->> VTS: cancelRequest(reqId,comment)
+   activate VTS
+
+   VTS ->> Input Validation: validateInput(reqId,comment)
+   activate Input Validation
+   Input Validation -->> VTS: Valid
+   deactivate Input Validation
+   alt Invalid Input
+   Input Validation -->> Employee: Input Errors
+   end
+   VTS-->>VTS:getCurrentEmp()
+   Activate VTS
+   Deactivate VTS
+   VTS ->> Vacation Facade: cancelRequest(reqId,comment,emp)
+   Activate Vacation Facade
+   alt Sucess
+   Vacation Facade ->> Vacation Service: updateRequestStatus(CANCELED)
+   activate Vacation Service
+   Vacation Service -->> Vacation Facade: updatedRequest
+   deactivate Vacation Service
+
+   Vacation Facade ->> Cancelation Service: createCancelation(reqId,emp,comment,CANCELED)
+   activate Cancelation Service
+   Cancelation Service -->> Vacation Facade: cancelation
+   deactivate Cancelation Service
+   Vacation Facade->> Balance Service: restoreBalance(request)
+   activate Balance Service
+   deactivate Balance Service
+   Vacation Facade ->> Notifier Service: notifyManager(cancelation,empMngr)
+   activate Notifier Service
+   deactivate Notifier Service
+   Vacation Facade -->> VTS : Canceled
+   Deactivate Vacation Facade
+   VTS -->> Employee : Canceled
+   else Exception
+   activate Vacation Facade
+   Vacation Facade ->> Vacation Facade: Rollback()
+   Vacation Facade -->> VTS: Exception
+   deactivate Vacation Facade
+   VTS -->> Employee : Error Message
+   end
+   activate Vacation Service
+   Deactivate VTS
+   Deactivate Employee
+
+```
+
+#### Withdraw Vacation Request
+
+- Also Check these diagrams :
+  - [Authentication](#authentication-seq-diagram)
+  - [Identifying User Identity and Role](#identifying-user-identity-and-role)
+
+```mermaid
+   sequenceDiagram
+
+   actor Employee
+   participant VTS
+   participant Input Validation
+   participant Vacation Facade
+   participant Vacation Service
+   participant Cancelation Service
+   participant Balance Service
+   participant Notifier Service
+   Activate Employee
+   Employee ->> VTS: withdrawRequest(reqId,comment)
+   activate VTS
+
+   VTS ->> Input Validation: validateInput(reqId,comment)
+   activate Input Validation
+   Input Validation -->> VTS: Valid
+   deactivate Input Validation
+   alt Invalid Input
+   Input Validation -->> Employee: Input Errors
+   end
+   VTS-->>VTS:getCurrentEmp()
+   Activate VTS
+   Deactivate VTS
+   VTS ->> Vacation Facade: cancelRequest(reqId,comment,emp)
+   Activate Vacation Facade
+   alt Sucess
+   Vacation Facade ->> Vacation Service: updateRequestStatus(WITHDRAWN)
+   activate Vacation Service
+   Vacation Service -->> Vacation Facade: updatedRequest
+   deactivate Vacation Service
+
+   Vacation Facade ->> Cancelation Service: createCancelation(reqId,emp,comment,WITHDRAWN)
+   activate Cancelation Service
+   Cancelation Service -->> Vacation Facade: cancelation
+   deactivate Cancelation Service
+   Vacation Facade->> Balance Service: restoreBalance(request)
+   activate Balance Service
+   deactivate Balance Service
+   Vacation Facade ->> Notifier Service: notifyManager(cancelation,empMngr)
+   activate Notifier Service
+   deactivate Notifier Service
+   Vacation Facade -->> VTS : WITHDRAWN
+   Deactivate Vacation Facade
+   VTS -->> Employee : WITHDRAWN
+   else Exception
+   activate Vacation Facade
+   Vacation Facade ->> Vacation Facade: Rollback()
+   Vacation Facade -->> VTS: Exception
+   deactivate Vacation Facade
+   VTS -->> Employee : Error Message
+   end
+   activate Vacation Service
+   Deactivate VTS
+   Deactivate Employee
 
 ```
 
@@ -383,20 +514,23 @@ sequenceDiagram
 
   > As the hr system will be the owner of various entities, reducing redundancy and ensuring consistency some entities will be trasient and only its id (in the hr system) will be referenced in our database, we may store some other data if needed.
 
-  - **EmployeeDTO**: DTO object that represents Employee data retieved from employee external API.
-  - **Location DTO**: DTO object that represents Location data retrieved from employee
+  - **EmployeeDTO**: DTO object that represents Employee data retieved from HR external API.
+  - **Location DTO**: DTO object that represents Location data retrieved from HR external API.
 
 - Persistent:
 
-  - **Vacation Request**: Represents entity object representing vacation request details
-  - **Vacation Type**: Entity representing category of a vacatio request
-  - **Employee Balance**: Entity representing employee's vacation balance for a specific Vacation Type
   - **Role**: Entity Representing a Role in the system
+  - **Vacation Request**: Represents entity object representing vacation request details
+  - **Vacation Type**: Entity representing category of a vacation request
+  - **Employee Balance**: Entity representing employee's vacation balance for a specific Vacation Type
   - **Decision**: Entity representing the decision ( Approval, Refusal ) for a Vacation Request
+  - **Cancellation**: Entity representing the cancellation of a Submitted Vacation Request
 
 - Enums
   - **Vacation Status (Enum)**: Enum representing Vacation Request status \
-    (PENDING | APPROVED | REJECTED | WITHDRAWN | CANCELLED)
+    (PENDING | APPROVED | REJECTED | WITHDRAWN | CANCELED)
+  - **Cancellation Type**: Enum representing Vacation Request cancellation type \
+    (CANCELED | WITHDRAWN)
 
 <figure align="center">
 <kbd>
@@ -454,14 +588,12 @@ sequenceDiagram
 
      // Retrieve employee data for the current user from the HR API
      emp = hr.getEmployee(user.username)
-
-     request = createRequest(emp,toDateTime,fromDateTime,vacationType,description)
+     // Retrieve employee's vacation balance from the database
+      balance = database.getVacationBalance(emp.id, vacationType,Year.now())
+     request = createRequest(emp,createdNow(),toDateTime,fromDateTime,vacationType,description,balance.id)
 
      // Retrieve location and other restrictions from the database
      locationRestrictions[] = database.getLocationRestrictions(request)
-
-     // Retrieve employee's vacation balance from the database
-     balance = database.getVacationBalance(emp.id, vacationType)
 
      balanceRestriction = createBalanceRestriction(balance)
      restrictionsList[] = locationRestrictions + balanceRestriction  // Combining to one list
@@ -523,4 +655,113 @@ sequenceDiagram
 
     RETURN "Request Updated"
    END FUNCTION
+  ```
+
+- **Cancel Vacation Request**
+
+  ```pseudocode
+  FUNCTION cancelVacationRequest(requestId,comment)
+     // Check if the user is authenticated
+     IF NOT security.isAuthenticated() THEN
+        RETURN "Error: Not Authenticated!"
+     END IF
+
+     // Check if the input is valid
+     IF NOT isValidInput(requestId, comment) THEN
+        RETURN "Error: Invalid Input"
+     END IF
+
+     // Get the authenticated user
+     user = security.getCurrentUser()
+
+     // fetch emp data from HR API
+     emp = hrClient.getEmp(user.username)
+
+     // Retrieve Decision
+     decision = database.getDecision(requestId)
+
+     // Check that if cancelation conditions are met
+     IF (NOT decision.isApproved()) OR (decision.createdAt > (Date.now() - 5 Days)) THEN
+        RETURN ERROR: "Illegal State"
+     End IF
+
+     //Retrieve request from database
+     request = database.getVacationRequest(requestId)
+
+     // Check if the user is authorized to change this request
+     IF NOT (request.empId = emp.empId or hasRole(HR)) Then
+        RETURN Error:"UnAuthorized"
+     END IF
+
+     // update request status to canceled
+     request.setStatus(CANCELED)
+     database.update(request)
+
+     //Create cancelation record
+     cancelation= database.insertCancelation(emp.empId,emp.name,requestId,comment,CANCELED)
+
+     // Retrieve employee's vacation balance from the database
+     balance = database.getVacationBalance(request.balance_id)
+
+     // Restore balance
+     restoreBalance(balance,request)
+
+     //Notify manager
+     notifyManager(cancelation,emp.mngr)
+
+     RETURN "Request Canceled"
+  END FUNCTION
+  ```
+
+- **Withdraw Vacation Request**
+
+  ```pseudocode
+  FUNCTION withdrawVacationRequest(requestId)
+     // Check if the user is authenticated
+     IF NOT security.isAuthenticated() THEN
+        RETURN "Error: Not Authenticated!"
+     END IF
+
+     // Check if the input is valid
+     IF NOT isValidInput(requestId) THEN
+        RETURN "Error: Invalid Input"
+     END IF
+
+     // Get the authenticated user
+     user = security.getCurrentUser()
+
+     //Fetch emp data from HR API
+     emp = hrClient.getEmp(user.username)
+
+     // Ensure that there is no decision on the request yet
+     IF database.decisionExists(requestId) THEN
+        RETURN ERROR: "Illegal State"
+     End IF
+
+     //Retrieve request from database
+     request = database.getVacationRequest(requestId)
+
+     // Check if the user is authorized to change this request
+     IF NOT (request.empId = emp.empId or hasRole(HR)) Then
+        RETURN Error:"UnAuthorized"
+     END IF
+
+     // update request status to canceled
+     request.setStatus(WITHDRAWN)
+     database.update(request)
+
+     //Create cancelation record
+     cancelation= database.insertCancelation(emp.empId,emp.name,requestId,WITHDRAWN)
+
+     // Retrieve employee's vacation balance from the database
+     balance = database.getVacationBalance(request.balance_id)
+
+     // Restore balance
+     restoreBalance(balance,request)
+
+     //Notify manager
+     notifyManager(cancelation,emp.mngr)
+
+     RETURN "Request Withdrawn"
+  END FUNCTION
   ```
