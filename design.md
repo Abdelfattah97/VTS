@@ -6,6 +6,8 @@
 - [**Domain**](#domain)
 - [**Actors**](#actors)
 - [**Use Cases**](#use-cases)
+- [**State Machine Diagrams**](#state-machine-diagrams)
+  - [Vacation Request State](#vacation-request-state)
 - [**Flowcharts**](#flowcharts)
 - [**Requirements**](#requirements)
   - [Function Requirements](#function-requirements)
@@ -55,6 +57,42 @@ As the problem revolves around the **complexity and inefficiencies** in the manu
 7. **Override Leave Records:** Changes any approved requests state.
 8. **Back up System Logs**
 
+### State Machine Diagrams
+
+#### Vacation Request State Diagram
+
+```mermaid
+stateDiagram-v2
+classDef yellow fill:#d4ac0d,font-weight:bold;
+classDef red fill:#c0392b,font-weight:bold;
+classDef blue fill:#2e86c1,font-weight:bold;
+classDef green fill:#27ae60  ,font-weight:bold;
+direction LR
+ [*] --> Pending: Request Made
+ Pending --> Approved : Manager Approved
+ Pending --> Rejected : Request Rejected
+ Pending --> Withdrawn : Employee Withdrawn
+ Approved --> Canceled : Employee Canceled
+ Rejected --> [*]
+ Withdrawn --> [*]
+ Canceled --> [*]
+ %%Final --> [*]
+ Approved --> [*]
+
+ class Pending yellow
+ class Canceled blue
+ class Withdrawn blue
+ class Approved green
+ class Final green
+ class Rejected red
+```
+
+- **Pending** state represents a new request pending for further action on it
+- **Approved** state represents a request the has been approved either by a manager or the system
+- **Rejected** state represents a request the has been rejected by a manager
+- **Withdrawn** state represents a request the has been withdrawn by its owner(employee) before being in the state of approved
+- **Canceled** state represents a request the has been canceled by its owner(employee) after being approved
+
 ### Flowcharts
 
 - **Use case:** Manage Time
@@ -71,14 +109,15 @@ As the problem revolves around the **complexity and inefficiencies** in the manu
     <img src="Design%26Analysis/flowcharts/Flowchart-WithdrawRequest-VTS.jpg" width="50%"/>
     </p>
 
-  - **Cancel Request (Alt Flow):**
-     <p align=center>
-     <img src="Design%26Analysis/flowcharts/Flowchart-CancelRequest-VTS.jpg" width="65%"/>
-     </p>
-  - **Edit Request (Alt Flow):**
-     <p align=center>
-     <img src="Design%26Analysis/flowcharts/Flowchart-EditRequest-VTS.jpg" width="65%"/>
-     </p>
+    - **Cancel Request (Alt Flow):**
+    <p align=center>
+    <img src="Design%26Analysis/flowcharts/Flowchart-CancelRequest-VTS.jpg" width="65%"/>
+    </p>
+
+    - **Edit Request (Alt Flow):**
+    <p align=center>
+    <img src="Design%26Analysis/flowcharts/Flowchart-EditRequest-VTS.jpg" width="65%"/>
+    </p>
 
 ## Requirements
 
@@ -528,9 +567,9 @@ sequenceDiagram
 
 - Enums
   - **Vacation Status (Enum)**: Enum representing Vacation Request status \
-    (PENDING | APPROVED | REJECTED | WITHDRAWN | CANCELED)
+    ( PENDING | APPROVED | REJECTED | WITHDRAWN | CANCELED )
   - **Cancellation Type**: Enum representing Vacation Request cancellation type \
-    (CANCELED | WITHDRAWN)
+    ( CANCELED | WITHDRAWN )
 
 <figure align="center">
 <kbd>
